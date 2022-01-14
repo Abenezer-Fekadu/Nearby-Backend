@@ -5,7 +5,6 @@ const jwt = require('jsonwebtoken');    // to generate signed token
 const expressJwt = require('express-jwt'); // for authorization check  
 
 
-
 // Functions
 async function signUp (req, res) {
     // Validate the user
@@ -13,16 +12,21 @@ async function signUp (req, res) {
     if (error)  return res.status(400).json({ msg: error.details[0].message });
 
     // Check if the user exists
-    let user = await User.findOne({ email: req.body.email });
-    if (user) return res.status(400).json({msg: "User Already Exists"}); 
+    try {
+        let user = await User.findOne({ email: req.body.email.toLowerCase() });
+        if (user) return res.status(400).json({msg: "User Already Exists"}); 
+    
+        // Save User
+        user = new User(req.body);
+        await user.save()
+    
+        user.salt = undefined
+        user.hashedPassword = undefined
+        res.status(201).send(user);
 
-    // Save User
-    user = new User(req.body);
-    await user.save()
-
-    user.salt = undefined
-    user.hashedPassword = undefined
-    res.send(user);
+    }catch(err){
+        res.status(400).json({msg: "Internal Server Error"});
+    }
 }
 
 
@@ -32,30 +36,32 @@ async function login(req, res) {
     if (error)  return res.status(400).json({ msg: error.details[0].message });
     
     // Get User
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const email = req.body.email.toLowerCase();
 
-    // check User
-    let user = await User.findOne({email});
-    if (!user) return res.status(400).json({msg: "User Doesn\'t Exists"}); 
+    try{
+        // check User
+        let user = await User.findOne({email});
+        if (!user) return res.status(400).json({msg: "User Doesn\'t Exists"}); 
+    
+        if (!user.authenticate(password)){
+            return res.status(400).json({
+                msg: "Email and Password don\'t match"
+            })
+        }
+        // Generate Token
+        const token = jwt.sign({_id: user._id}, process.env.JWT_SECRET)
+    
+        res.cookie('t', token, {expire: new Date() + 9999})
+    
+        const {_id, username, phone} = user
+    
+        res.status(200).send({_id, username, phone, email, token })
+        
+    }catch(err) {
+        res.status(400).json({msg: "Internal Server Error"});
 
-    if (!user.authenticate(password)){
-        return res.status(400).json({
-            msg: "Email and Password don\'t match"
-        })
     }
-    // Generate Token
-    const token = jwt.sign({_id: user._id}, process.env.JWT_SECRET)
-
-    res.cookie('t', token, {expire: new Date() + 9999})
-
-
-    const {_id, firstName, lastName, roles} = user
-
-    return res.json({
-        token,
-        user: {_id, firstName, lastName, email, roles}
-
-    })
 }
 
 
@@ -66,24 +72,6 @@ async function logout(req, res) {
     })
 
 }
-
-
-
-// module.exports.signUp = (req, res) => {
-        // const user = new User(req.body);
-    // user.save((err, user) => {
-    //     if(err){
-    //         return res.status(400).json({
-    //             err: errorHandler(err)
-    //         });
-    //     }
-    //     user.salt = undefined
-    //     user.hashedPassword = undefined
-    //     res.json({
-    //       user
-    //     });
-    // });
-// }
 
 exports.requireSignIn = expressJwt({
     secret: process.env.JWT_SECRET,

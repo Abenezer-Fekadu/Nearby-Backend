@@ -4,19 +4,14 @@ const router = express.Router();
 
 
 // Controllers
-const { requireSignIn, signUp, login, logout } = require('../controlers/auth');
-
-
-// Validators
-// const { signupValidator} = require('../validators')
-
+const { requireSignIn, signUp, login, logout } = require('../controllers/auth');
 
 // Routes
 router.post('/signup', signUp);
 
 router.post('/login', login);
 
-router.get('/logout', logout)
+router.get('/logout', requireSignIn, logout)
 
 
 // Export

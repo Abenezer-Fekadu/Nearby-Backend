@@ -6,19 +6,19 @@ const {v4: uuidv4} = require('uuid')
 
 const authSchema = new mongoose.Schema(
     {
-        firstName: {
+        username: {
             type: String,
             trim: true,
             required: true,
             minlength: 2,
             maxlength:32,
         },
-        lastName: {
+        phone: {
             type: String,
             trim: true,
             required: true,
-            minlength: 2,
-            maxlength:32,
+            minlength: 10,
+            maxlength:12,
         },
         email: { 
             type: String,
@@ -72,16 +72,15 @@ authSchema.methods = {
     }
 }
 
-
 function validateUserSignup(user){
     const schema = Joi.object({
-        firstName: Joi.string()
+        username: Joi.string()
             .min(3)
             .max(30)
             .required(),
-        lastName: Joi.string()
-            .min(3)
-            .max(30)
+        phone: Joi.string()
+            .length(10)
+            .pattern(/^[0-9]+$/)
             .required(),
         password: Joi.string()
             .pattern(new RegExp('^[a-zA-Z0-9]{3,30}$'))
@@ -93,6 +92,7 @@ function validateUserSignup(user){
     return schema.validate(user)
 
 }
+
 function validateUserSignIn(user){
     const schema = Joi.object({
         password: Joi.string()
